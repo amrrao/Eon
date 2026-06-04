@@ -5,6 +5,7 @@ Id (primary key)
 Email
 Credits 
 Password_hash
+stripe_customer_id
 created_at
 
 Lives
@@ -66,13 +67,13 @@ Returns: jwt
 
 POST /lives
 Info sent: starting preferences (e.g. gender)
-Action: Generates full starting life info with preferences included and adds to DB, generate event too
-Returns: json randomly generated starting life info e.g. location, parents, etc to frontend, and event
+Action: Generates full starting life info with preferences included and adds to DB, generate event too. Subtracts 1 user credit
+Returns: json randomly generated starting life info e.g. location, parents, etc to frontend, and event. Returns 402 if credits <1
 
 POST lives/{life_id}/events
 Info sent: lifeid(is this necessary bc ur already inside that life)
-Action: puts rolling summary and stats into openai to get new scenario, puts choices and scenario into DB events row, updates unread message count
-Returns: json with scenario description, possible choices, messages, unread message count
+Action: puts rolling summary and stats into openai to get new scenario, puts choices and scenario into DB events row, updates unread message count. Subtracts 1 user credit
+Returns: json with scenario description, possible choices, messages, unread message count. Returns 402 if credits <1
 
 PATCH /lives/{life_id}/events/{event_id}
 Info sent: decision between choices
@@ -81,8 +82,8 @@ Returns: success
 
 POST /lives/{life_id}/relationships/{relationship_id}/messages
 Info sent: message, lifeid, relationship character receiver
-Action: inserts message, sent by who in a row in db, updates rolling summary and message into openai, gets a response, also gets updates to happiness and relationship stats. creates new row for response as well
-Returns: response, stat updates
+Action: inserts message, sent by who in a row in db, updates rolling summary and message into openai, gets a response, also gets updates to happiness and relationship stats. creates new row for response as well. Subtracts 1 user credit
+Returns: response, stat updates. Returns 402 if credits <1
 
 GET /lives/{life_id}
 Info sent: life id
@@ -103,3 +104,13 @@ PATCH /lives/{life_id}/relationships/{relationship_id}/messages
 Info sent: life id, relationship
 Action: sets unread_messages to that relationship to 0 and subtracts the old number from unread messages for that life id 
 Returns: success 
+
+POST /credits/purchase
+Info sent: number of credits
+Action: creates stripe checkout session, customer id
+Returns: stripe checkout url
+
+POST /credits/webhook
+Info sent: webhook event
+Action: adds credits to user
+Returns: success
