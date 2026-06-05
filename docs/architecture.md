@@ -72,8 +72,8 @@ Returns: json randomly generated starting life info e.g. location, parents, etc 
 
 POST lives/{life_id}/events
 Info sent: lifeid(is this necessary bc ur already inside that life)
-Action: puts rolling summary and stats into openai to get new scenario, puts choices and scenario into DB events row, updates unread message count. Subtracts 1 user credit
-Returns: json with scenario description, possible choices, messages, unread message count. Returns 402 if credits <1
+Action: puts rolling summary and stats into openai to get new scenario, puts choices and scenario into DB events row, updates unread message count. Can add relationship. Subtracts 1 user credit
+Returns: json with scenario description, possible choices, messages, new relationship if added, unread message count. Returns 402 if credits <1
 
 PATCH /lives/{life_id}/events/{event_id}
 Info sent: decision between choices
