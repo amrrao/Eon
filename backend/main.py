@@ -1,7 +1,10 @@
-from fastapi import FASTAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from routers import auth
+from database import database
 
-app = FASTAPI()
+app = FastAPI()
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -11,6 +14,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/auth")
+
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
+
 @app.get("/")
 def root():
     return {"message": "Eon API"}
+
+
+
+
