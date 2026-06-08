@@ -184,7 +184,6 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
 
 @router.patch("/{life_id}/events/{event_id}")
 async def update_choice(body: Decision, life_id: str, event_id: str, user = Depends(get_current_user)):
-   
 
     life_stats = await database.fetch_one(
        "Select rolling_summary, age, money, happiness, intelligence, reputation from lives where id = :id",
@@ -249,3 +248,40 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
     )
 
     return {"status": "success"}
+
+@router.get("/{life_id}")
+async def get_life(life_id: str):
+
+    life_stats = await database.fetch_one(
+        "Select age, money, happiness, intelligence, reputation, alive from lives where id = :id",
+        {"id": life_id}
+        )
+    age = life_stats["age"]
+    money = life_stats["money"]
+    happiness = life_stats["happiness"]
+    intelligence = life_stats["intelligence"]
+    reputation = life_stats["reputation"]
+    alive = life_stats["alive"]
+
+    last_event = await database.fetch_one(
+        "SELECT id, scenario, possible_choices, decided_choice FROM events WHERE life_id = :life_id ORDER BY created_at DESC LIMIT 1",
+        {"life_id": life_id}
+    )
+    event_id = last_event["id"]
+    scenario = last_event["scenario"]
+    possible_choices = last_event["possible_choices"]
+    decided_choice = last_event["decided_choice"]
+
+
+    return{
+        "event_id": event_id,
+        "age": age,
+        "money": money,
+        "happiness": happiness,
+        "intelligence": intelligence,
+        "reputation": reputation,
+        "alive": alive,
+        "scenario": scenario,
+        "possible_choices": possible_choices,
+        "decided_choice": decided_choice
+    }
