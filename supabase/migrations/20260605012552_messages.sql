@@ -3,9 +3,6 @@ create table messages (
     relationship_id uuid not null references relationships(id),
     sent_by_whom text,
     message text,
-    update_to_strength_number integer,
-    update_to_happiness integer,
-    update_to_relationship_type text,
     created_at timestamptz not null default now()
 );
 
