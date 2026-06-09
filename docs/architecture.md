@@ -82,7 +82,7 @@ Returns: success
 
 POST /lives/{life_id}/relationships/{relationship_id}/messages
 Info sent: message, lifeid, relationship character receiver
-Action: inserts message, sent by who in a row in db, updates rolling summary and message into openai, gets a response, also gets updates to happiness and relationship stats. creates new row for response as well. Subtracts 1 user credit
+Action: inserts message, sent by who in a row in db, updates rolling summary and message into openai, gets a response, new rolling summary, also gets updates to happiness and relationship stats. creates new row for response as well. Subtracts 1 user credit
 Returns: response, stat updates. Returns 402 if credits <1
 
 GET /lives/{life_id}
