@@ -140,3 +140,28 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         "relationship_type": relationship_type,
     }
 
+
+@router.patch("/{life_id}/relationships/{relationship_id}/messages")
+async def set_unread_to_zerio(life_id: str, relationship_id: str, user = Depends(get_current_user)):
+
+    unread_message_count = await database.fetch_one(
+       "Select unread_message_count from relationships where id = :id",
+        {"id": relationship_id}
+        )
+    unread_message_count = unread_message_count["unread_message_count"]
+    if unread_message_count>0:
+        await database.execute(
+            "UPDATE lives SET unread_message_count = unread_message_count - :unread_message_count WHERE id = :life_id",
+            {
+                "unread_message_count": unread_message_count,
+                "life_id": life_id
+            }
+        )
+        await database.execute(
+            "UPDATE relationships SET unread_message_count = 0 WHERE id = :relationship_id",
+            {
+                "unread_message_count": unread_message_count,
+                "relationship_id": relationship_id
+            }
+        )
+    return {"status": "success"}
