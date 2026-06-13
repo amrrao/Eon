@@ -43,6 +43,10 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
     choices = life_data["choices"]
     life_id = str(uuid.uuid4())
     await database.execute(
+        "UPDATE lives SET is_active = false WHERE user_id = :user_id",
+        {"user_id": str(user.id)}
+    )
+    await database.execute(
         "Insert into lives (id, user_id, gender, unread_message_count) values (:id, :user_id, :gender, :unread_message_count)",
         {"id": life_id,
         "user_id": str(user.id), 
@@ -256,6 +260,9 @@ async def get_life(life_id: str):
         "Select age, money, happiness, intelligence, reputation, alive from lives where id = :id",
         {"id": life_id}
         )
+
+    if not life_stats:
+        return {"life_id": None}
     age = life_stats["age"]
     money = life_stats["money"]
     happiness = life_stats["happiness"]
@@ -285,3 +292,54 @@ async def get_life(life_id: str):
         "possible_choices": possible_choices,
         "decided_choice": decided_choice
     }
+
+@router.get("/active")
+async def get_active_life(user = Depends(get_current_user)):
+    life_stats = await database.fetch_one(
+        "Select id, age, money, happiness, intelligence, reputation, alive from lives where user_id = :user_id order by is_active desc, created_at desc limit 1",
+        {"user_id": str(user.id)}
+    )
+    if not life_stats:
+        return {"life_id": None}
+    age = life_stats["age"]
+    money = life_stats["money"]
+    happiness = life_stats["happiness"]
+    intelligence = life_stats["intelligence"]
+    reputation = life_stats["reputation"]
+    alive = life_stats["alive"]
+    life_id = life_stats['id']
+    last_event = await database.fetch_one(
+        "SELECT id, scenario, possible_choices, decided_choice FROM events WHERE life_id = :life_id ORDER BY created_at DESC LIMIT 1",
+        {"life_id": life_id}
+    )
+    event_id = last_event["id"]
+    scenario = last_event["scenario"]
+    possible_choices = last_event["possible_choices"]
+    decided_choice = last_event["decided_choice"]
+
+
+    return{
+        "life_id": life_id,
+        "event_id": event_id,
+        "age": age,
+        "money": money,
+        "happiness": happiness,
+        "intelligence": intelligence,
+        "reputation": reputation,
+        "alive": alive,
+        "scenario": scenario,
+        "possible_choices": possible_choices,
+        "decided_choice": decided_choice
+    }
+
+@router.patch("/{life_id}/activate")
+async def activate_life(life_id: str, user = Depends(get_current_user)):
+    await database.execute(
+        "UPDATE lives SET is_active = false WHERE user_id = :user_id",
+        {"user_id": str(user.id)}
+    )
+    await database.execute(
+        "UPDATE lives SET is_active = true WHERE id = :id",
+        {"id": life_id}
+    )
+    return {"status": "success"}

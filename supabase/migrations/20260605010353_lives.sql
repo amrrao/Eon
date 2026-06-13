@@ -10,6 +10,7 @@ create table lives (
     alive boolean default true,
     unread_message_count integer default 0, 
     rolling_summary text,
+    is_active boolean default true,
     created_at timestamptz not null default now()
 );
 
