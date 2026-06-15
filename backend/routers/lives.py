@@ -251,46 +251,13 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
         }
     )
 
-    return {"status": "success"}
-
-@router.get("/{life_id}")
-async def get_life(life_id: str):
-
-    life_stats = await database.fetch_one(
-        "Select age, money, happiness, intelligence, reputation, alive from lives where id = :id",
-        {"id": life_id}
-        )
-
-    if not life_stats:
-        return {"life_id": None}
-    age = life_stats["age"]
-    money = life_stats["money"]
-    happiness = life_stats["happiness"]
-    intelligence = life_stats["intelligence"]
-    reputation = life_stats["reputation"]
-    alive = life_stats["alive"]
-
-    last_event = await database.fetch_one(
-        "SELECT id, scenario, possible_choices, decided_choice FROM events WHERE life_id = :life_id ORDER BY created_at DESC LIMIT 1",
-        {"life_id": life_id}
-    )
-    event_id = last_event["id"]
-    scenario = last_event["scenario"]
-    possible_choices = last_event["possible_choices"]
-    decided_choice = last_event["decided_choice"]
-
-
-    return{
-        "event_id": event_id,
-        "age": age,
-        "money": money,
-        "happiness": happiness,
-        "intelligence": intelligence,
-        "reputation": reputation,
-        "alive": alive,
-        "scenario": scenario,
-        "possible_choices": possible_choices,
-        "decided_choice": decided_choice
+    return {
+    "status": "success",
+    "money": money + update_to_money,
+    "intelligence": intelligence + update_to_intelligence,
+    "happiness": happiness + update_to_happiness,
+    "reputation": reputation + update_to_reputation,
+    "age": age + update_to_age,
     }
 
 @router.get("/active")
@@ -332,6 +299,8 @@ async def get_active_life(user = Depends(get_current_user)):
         "decided_choice": decided_choice
     }
 
+
+
 @router.patch("/{life_id}/activate")
 async def activate_life(life_id: str, user = Depends(get_current_user)):
     await database.execute(
@@ -343,3 +312,44 @@ async def activate_life(life_id: str, user = Depends(get_current_user)):
         {"id": life_id}
     )
     return {"status": "success"}
+
+
+@router.get("/{life_id}")
+async def get_life(life_id: str):
+
+    life_stats = await database.fetch_one(
+        "Select age, money, happiness, intelligence, reputation, alive from lives where id = :id",
+        {"id": life_id}
+        )
+
+    if not life_stats:
+        return {"life_id": None}
+    age = life_stats["age"]
+    money = life_stats["money"]
+    happiness = life_stats["happiness"]
+    intelligence = life_stats["intelligence"]
+    reputation = life_stats["reputation"]
+    alive = life_stats["alive"]
+
+    last_event = await database.fetch_one(
+        "SELECT id, scenario, possible_choices, decided_choice FROM events WHERE life_id = :life_id ORDER BY created_at DESC LIMIT 1",
+        {"life_id": life_id}
+    )
+    event_id = last_event["id"]
+    scenario = last_event["scenario"]
+    possible_choices = last_event["possible_choices"]
+    decided_choice = last_event["decided_choice"]
+
+
+    return{
+        "event_id": event_id,
+        "age": age,
+        "money": money,
+        "happiness": happiness,
+        "intelligence": intelligence,
+        "reputation": reputation,
+        "alive": alive,
+        "scenario": scenario,
+        "possible_choices": possible_choices,
+        "decided_choice": decided_choice
+    }

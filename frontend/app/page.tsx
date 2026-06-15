@@ -24,7 +24,6 @@ export default function Welcome() {
       setSession(session)
       setLoading(false)
       //change
-      if (session) router.push("/home")
     })
   }, [])
   

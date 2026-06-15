@@ -1,46 +1,109 @@
-import Image from "next/image";
-import React from "react";
+"use client"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
 
-const choices = ["Say yes!", "Decline politely", "Ask for more time"]
-const stats = [
-  { label: "Money", value: 42, color: "#c4956a" },
-  { label: "Happiness", value: 68, color: "#a67c52" },
-  { label: "Intelligence", value: 75, color: "#8b6240" },
-  { label: "Reputation", value: 55, color: "#d4a87a" },
-]
 
 export default function Home() {
-  return (
-    <div className="flex flex-col min-h-screen bg-stone-200">
-      <div className="pt-8 pl-8 text-xl">
-        Age 19
-      </div>
-      <div className="justify-center text-center pt-12 text-lg">
-        Your classmate Sydney just asks you to be friends. What do you do?
-      </div>
+  const [game, setGame] = useState<any>(null)
+  const router = useRouter()
+  const supabase = createClient()
+  const [choosing, setChoosing] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        router.push("/")
+        return
+      }
+      const res = await fetch("http://localhost:8000/lives/active", {
+        headers: { "Authorization": `Bearer ${session.access_token}` }
+      })
+      const data = await res.json()
+      if (!data.life_id) {
+        router.push("/")
+        return
+      }
+      setGame({
+        ...data,
+        possible_choices: JSON.parse(data.possible_choices)
+      })
+    })
+  }, [])
+  if (!game) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+
+  async function handleChoice(choice: string) {
+    setChoosing(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session!.access_token
+
+    const patchRes = await fetch(`http://localhost:8000/lives/${game.life_id}/events/${game.event_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ decision: choice })
+    })
+    const updatedStats = await patchRes.json()
+
+
+    const res = await fetch(`http://localhost:8000/lives/${game.life_id}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    })
+    const newEvent = await res.json()
+    
+    setGame({
+      ...game,
+      money: updatedStats.money,
+      happiness: updatedStats.happiness,
+      intelligence: updatedStats.intelligence,
+      reputation: updatedStats.reputation,
+      age: updatedStats.age,
+      scenario: newEvent.scenario,
+      possible_choices: newEvent.choices,
+      event_id: newEvent.event_id,
+    })
+    setChoosing(false)
+
+
+  }
+
+return (
+  <div className="flex flex-col min-h-screen bg-stone-200">
+    <div className="pt-8 pl-8 text-xl">
+      Age: {game.age}
+    </div>
+    <div className="justify-center text-center pt-12 text-lg pr-20 pl-20">
+      {game.scenario}
+    </div>
+    {choosing ? (
+      <div className="text-center text-stone-500 mt-6">Your life unfolds...</div>
+    ) : (
       <div className="flex flex-col gap-3 mt-6 ml-20 mr-20 text-center">
-        {choices.map((choice, index) => (
-          <div key={index} className="border border-gray-400 rounded-xl p-4 hover:bg-gray-100">
+        {game.possible_choices?.map((choice: string, index: number) => (
+          <div key={index} onClick={() => handleChoice(choice)} className="border border-gray-400 rounded-xl p-4 hover:bg-gray-100 cursor-pointer">
             {choice}
           </div>
         ))}
       </div>
-      <div className="mt-auto pb-20 bg-stone-100 pr-8 pl-8">
+    )}
+    <div className="mt-auto pb-20 bg-stone-100 pr-8 pl-8">
       <div className="pt-4 pb-2">Life Stats</div>
-        {stats.map((stat, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <span className="text-xs w-24">{stat.label}</span>
-            <div className="flex-1 h-1.5 bg-[#e8e0d0] rounded-full">
-              <div className="h-full rounded-full" style={{ width: `${stat.value}%`, background: stat.color }} />
-            </div>
-            <span className="text-xs w-6 text-right">{stat.value}</span>
+      {[
+        { label: "Money", value: game.money, color: "#c4956a" },
+        { label: "Happiness", value: game.happiness, color: "#a67c52" },
+        { label: "Intelligence", value: game.intelligence, color: "#8b6240" },
+        { label: "Reputation", value: game.reputation, color: "#d4a87a" },
+      ].map((stat, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <span className="text-xs w-24">{stat.label}</span>
+          <div className="flex-1 h-1.5 bg-[#e8e0d0] rounded-full">
+            <div className="h-full rounded-full" style={{ width: `${stat.value}%`, background: stat.color }} />
           </div>
-        ))}
-      </div>
-      <Navbar/>
+          <span className="text-xs w-6 text-right">{stat.value}</span>
+        </div>
+      ))}
     </div>
-    
-    
-  );
-}
+    <Navbar/>
+  </div>
+)}
