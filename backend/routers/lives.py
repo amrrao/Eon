@@ -16,6 +16,13 @@ class CreateLifeRequest(BaseModel):
 class Decision(BaseModel):
     decision: str
 
+@router.get("/")
+async def get_all_lives(user = Depends(get_current_user)):
+    lives = await database.fetch_all(
+        "SELECT id, gender, age, created_at FROM lives WHERE user_id = :user_id AND is_active = false AND alive = true ORDER BY created_at DESC",
+        {"user_id": str(user.id)}
+    )
+    return {"lives": [dict(l) for l in lives]}
 
 @router.post("/")
 async def create_life(body: CreateLifeRequest, user = Depends(get_current_user)):
