@@ -61,6 +61,7 @@ export default function messages() {
 
   }
   async function handleSend(relationship_id: string) {
+    console.log("handleSend called")
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
@@ -70,6 +71,7 @@ export default function messages() {
       body: JSON.stringify({ message: message })
     })
     const data = await res.json()
+    console.log("data sent back:", data)
     
     setTexts(prev => [...prev, 
       { sent_by_whom: "player", message: message },
