@@ -12,7 +12,7 @@ router = APIRouter()
 class Message(BaseModel):
     message: str
 
-@router.get("{life_id}/relationships")
+@router.get("/{life_id}/relationships")
 async def get_relationships(life_id: str):
     relationships_list = await database.fetch_all(
         "SELECT id, character_name, strength_number, relationship_type, unread_message_count FROM relationships WHERE life_id = :life_id ORDER BY unread_message_count DESC",
@@ -20,7 +20,7 @@ async def get_relationships(life_id: str):
     )
     return {"relationships": [dict(r) for r in relationships_list]}
 
-@router.get("lives/{life_id}/relationships/{relationship_id}/messages")
+@router.get("/{life_id}/relationships/{relationship_id}/messages")
 async def get_messages(life_id: str, relationship_id: str):
 
     messages_list = await database.fetch_all(
