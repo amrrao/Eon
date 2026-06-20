@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
+import BuyCreditsModal from "@/components/BuyCreditsModal"
 
 
 export default function Home() {
@@ -10,6 +11,8 @@ export default function Home() {
   const router = useRouter()
   const supabase = createClient()
   const [choosing, setChoosing] = useState(false)
+  const [showBuyModal, setShowBuyModal] = useState(false)
+
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -50,6 +53,13 @@ export default function Home() {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     })
+
+    if (res.status === 402) {
+      setShowBuyModal(true)
+      setChoosing(false)
+      return
+    }
+
     const newEvent = await res.json()
     
     setGame({
@@ -104,6 +114,7 @@ return (
         </div>
       ))}
     </div>
+    <BuyCreditsModal show={showBuyModal} onClose={() => setShowBuyModal(false)} />
     <Navbar/>
   </div>
 )}

@@ -3,6 +3,8 @@ import {useState, useEffect} from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
+import BuyCreditsModal from "@/components/BuyCreditsModal"
+
 
 
 export default function messages() {
@@ -11,6 +13,7 @@ export default function messages() {
   const [texts, setTexts] = useState<any[]>([])
   const [message, setMessage] = useState("")
   const [life_id, setLifeID] = useState("")
+  const [showBuyModal, setShowBuyModal] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   useEffect(() => {
@@ -70,8 +73,13 @@ export default function messages() {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ message: message })
     })
+
+    if (res.status === 402) {
+      setShowBuyModal(true)
+      return
+    }
     const data = await res.json()
-    console.log("data sent back:", data)
+    
     
     setTexts(prev => [...prev, 
       { sent_by_whom: "player", message: message },
@@ -127,6 +135,7 @@ export default function messages() {
           )}
         </div>
       </div>
+      <BuyCreditsModal show={showBuyModal} onClose={() => setShowBuyModal(false)} />
       <Navbar/>
     </div>
   )

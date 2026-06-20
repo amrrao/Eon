@@ -11,6 +11,7 @@ export default function Profile() {
   const [lives, setLives] = useState<any[]>([])
   const [showBuyModal, setShowBuyModal] = useState(false)
   const [customCredits, setCustomCredits] = useState("")
+  
 
 
   useEffect(() => {
