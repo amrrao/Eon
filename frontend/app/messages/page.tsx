@@ -27,6 +27,10 @@ export default function messages() {
         headers: { "Authorization": `Bearer ${session.access_token}` }
       })
       const lifejson = await life.json()
+      if (!lifejson.life_id) {
+        router.push("/")
+        return
+      }
       const lifeId = lifejson["life_id"]
       setLifeID(lifeId)
 
