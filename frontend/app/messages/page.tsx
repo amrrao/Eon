@@ -14,6 +14,7 @@ export default function messages() {
   const [message, setMessage] = useState("")
   const [life_id, setLifeID] = useState("")
   const [showBuyModal, setShowBuyModal] = useState(false)
+  const [sending, setSending] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   useEffect(() => {
@@ -68,6 +69,8 @@ export default function messages() {
 
   }
   async function handleSend(relationship_id: string) {
+    if (sending) return
+    setSending(true)
     console.log("handleSend called")
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
@@ -90,6 +93,7 @@ export default function messages() {
       { sent_by_whom: "other_person", message: data.response }
     ])
     setMessage("")
+    setSending(false)
   }
 
   return (
@@ -130,9 +134,10 @@ export default function messages() {
                 />
                 <button
                   onClick={() => handleSend(selectedContact!)}
-                  className="bg-stone-700 text-white rounded-lg px-4 py-2 text-sm"
+                  disabled={sending}
+                  className="bg-stone-700 text-white rounded-lg px-4 py-2 text-sm disabled:opacity-50"
                 >
-                  Send
+                  {sending ? "..." : "Send"}
                 </button>
               </div>
             </>
