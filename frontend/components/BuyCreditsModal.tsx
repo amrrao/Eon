@@ -11,10 +11,12 @@ export default function BuyCreditsModal({ show, onClose }: { show: boolean, onCl
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
+    const currentPath = window.location.pathname
+
     const res = await fetch("http://localhost:8000/credits/purchase", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      body: JSON.stringify({ credits })
+      body: JSON.stringify({ credits, return_path: currentPath})
     })
     const data = await res.json()
     window.location.href = data.checkout_url
@@ -30,12 +32,22 @@ export default function BuyCreditsModal({ show, onClose }: { show: boolean, onCl
         <button onClick={() => handleBuy(500)} className="border rounded-lg p-3">500 Credits - $9.99</button>
         <input
           type="number"
+          min={10}
           value={customCredits}
           onChange={e => setCustomCredits(e.target.value)}
-          placeholder="Custom amount"
+          placeholder="Custom amount (min 10)"
           className="border rounded-lg p-3 text-sm"
         />
-        <button onClick={() => handleBuy(Number(customCredits))} className="border rounded-lg p-3">
+        <button 
+        onClick={() => {
+          const num = Number(customCredits)
+          if (num < 10) {
+            alert("Minimum custom purchase is 10 credits")
+            return
+          }
+          handleBuy(num)
+          }}
+          className="border rounded-lg p-3">
           Buy Custom Amount
         </button>
       </div>

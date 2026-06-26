@@ -18,6 +18,7 @@ PRICE_IDS = {
 
 class PurchaseRequest(BaseModel):
     credits: int
+    return_path: str = "/profile"
 
 @router.post("/purchase")
 async def purchase_credits(body: PurchaseRequest, user = Depends(get_current_user)):
@@ -47,8 +48,8 @@ async def purchase_credits(body: PurchaseRequest, user = Depends(get_current_use
         payment_method_types=["card"],
         line_items=[{"price": price_id, "quantity": quantity}],
         mode="payment",
-        success_url="http://localhost:3000/profile?payment=success",
-        cancel_url="http://localhost:3000/profile",
+        success_url=f"http://localhost:3000{body.return_path}?payment=success",
+        cancel_url=f"http://localhost:3000{body.return_path}",
         metadata={"user_id": str(user.id), "credits": str(body.credits)}
     )
 
@@ -69,12 +70,24 @@ async def stripe_webhook(request: Request):
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
+
+        existing = await database.fetch_one(
+            "SELECT id FROM processed_events WHERE stripe_event_id = :id",
+            {"id": event["id"]}
+        )
+        if existing:
+            return {"status": "already processed"}
+
         user_id = session["metadata"]["user_id"]
         credits = int(session["metadata"]["credits"])
 
         await database.execute(
             "UPDATE users SET credits = credits + :credits WHERE id = :id",
             {"credits": credits, "id": user_id}
+        )
+        await database.execute(
+            "INSERT INTO processed_events (stripe_event_id) VALUES (:id)",
+            {"id": event["id"]}
         )
 
     return {"status": "success"}

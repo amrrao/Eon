@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
 import { Button } from "@/components/ui/button"
+import BuyCreditsModal from "@/components/BuyCreditsModal"
+
 
 export default function Profile() {
   const router = useRouter()
@@ -88,25 +90,7 @@ export default function Profile() {
         <div>Credits</div>
         <Button onClick={() => setShowBuyModal(true)}>Buy More Credits</Button>
 
-        {showBuyModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center" onClick={() => setShowBuyModal(false)}>
-          <div className="bg-white rounded-xl p-8 flex flex-col gap-4 w-80" onClick={e => e.stopPropagation()}>
-            <div className="text-xl font-medium">Buy Credits</div>
-            <button onClick={() => handleBuy(100)} className="border rounded-lg p-3">100 Credits - $2.99</button>
-            <button onClick={() => handleBuy(500)} className="border rounded-lg p-3">500 Credits - $9.99</button>
-            <input
-              type="number"
-              value={customCredits}
-              onChange={e => setCustomCredits(e.target.value)}
-              placeholder="Custom amount"
-              className="border rounded-lg p-3 text-sm"
-            />
-            <button onClick={() => handleBuy(Number(customCredits))} className="border rounded-lg p-3">
-              Buy Custom Amount
-            </button>
-          </div>
-        </div>
-      )}
+        <BuyCreditsModal show={showBuyModal} onClose={() => setShowBuyModal(false)} />
       </div>
       <div>
         <button className="border border-gray-600 rounded-lg p-1" onClick={handleSignOut}>

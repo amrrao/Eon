@@ -20,20 +20,45 @@ export default function Home() {
         router.push("/")
         return
       }
+      const token = session.access_token
+  
       const res = await fetch("http://localhost:8000/lives/active", {
-        headers: { "Authorization": `Bearer ${session.access_token}` }
+        headers: { "Authorization": `Bearer ${token}` }
       })
       const data = await res.json()
       if (!data.life_id) {
         router.push("/")
         return
       }
-      setGame({
-        ...data,
-        possible_choices: JSON.parse(data.possible_choices)
-      })
+  
+      if (data.decided_choice !== null) {
+        // last choice was already recorded, but no new scenario exists yet
+        const eventRes = await fetch(`http://localhost:8000/lives/${data.life_id}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        })
+  
+        if (eventRes.status === 402) {
+          setShowBuyModal(true)
+          return
+        }
+  
+        const newEvent = await eventRes.json()
+        setGame({
+          ...data,
+          scenario: newEvent.scenario,
+          possible_choices: newEvent.choices,
+          event_id: newEvent.event_id,
+        })
+      } else {
+        setGame({
+          ...data,
+          possible_choices: JSON.parse(data.possible_choices)
+        })
+      }
     })
   }, [])
+
   if (!game) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
   async function handleChoice(choice: string) {
@@ -48,17 +73,16 @@ export default function Home() {
     })
     const updatedStats = await patchRes.json()
 
+    if (patchRes.status === 402) {
+      setShowBuyModal(true)
+      setChoosing(false)
+      return
+    }
 
     const res = await fetch(`http://localhost:8000/lives/${game.life_id}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     })
-
-    if (res.status === 402) {
-      setShowBuyModal(true)
-      setChoosing(false)
-      return
-    }
 
     const newEvent = await res.json()
     

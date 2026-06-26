@@ -104,13 +104,6 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
 
 @router.post("/{life_id}/events")
 async def generate_event(life_id: str, user = Depends(get_current_user)):
-    credits = await database.fetch_one(
-        "Select credits from users where id = :id",
-        {"id": user.id}
-        )
-
-    if credits["credits"]<1:
-        raise HTTPException(status_code=402, detail="Insufficient credits")
 
     life_stats = await database.fetch_one(
         "Select rolling_summary, age, money, happiness, intelligence, reputation from lives where id = :id",
@@ -177,10 +170,6 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
             "message": message_from_relationship}
         )
 
-    await database.execute(
-        "UPDATE users set credits = credits -1 where id = :id",
-        {"id": str(user.id)}
-    )
 
     return{
         "event_id": event_id,
@@ -195,7 +184,13 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
 
 @router.patch("/{life_id}/events/{event_id}")
 async def update_choice(body: Decision, life_id: str, event_id: str, user = Depends(get_current_user)):
-
+    credits = await database.fetch_one(
+    "SELECT credits FROM users WHERE id = :id",
+    {"id": user.id}
+    )
+    if credits["credits"] < 1:
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+        
     life_stats = await database.fetch_one(
        "Select rolling_summary, age, money, happiness, intelligence, reputation from lives where id = :id",
         {"id": life_id}
@@ -257,6 +252,12 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
             "rolling_summary": updated_rolling_summary
         }
     )
+
+    await database.execute(
+        "UPDATE users SET credits = credits - 1 WHERE id = :id",
+        {"id": str(user.id)}
+    )
+
 
     return {
     "status": "success",
