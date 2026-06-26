@@ -53,20 +53,6 @@ export default function Profile() {
     router.push('/home')
   }
 
-  async function handleBuy(credits: number) {
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session!.access_token
-
-    const res = await fetch("http://localhost:8000/credits/purchase",{
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`},
-      body: JSON.stringify({ credits })
-    })
-    const data = await res.json()
-    window.location.href = data.checkout_url
-
-  }
-
 
   return (
     <div className="flex flex-col min-h-screen bg-stone-200">

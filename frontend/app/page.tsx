@@ -23,7 +23,7 @@ export default function Welcome() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setLoading(false)
-      //change
+      if (session) router.push("/home")
     })
   }, [])
   
