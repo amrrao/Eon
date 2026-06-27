@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 const PROTECTED_ROUTES = ["/home", "/profile", "/messages"]
+const AUTH_ROUTES = ["/"]
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -29,13 +30,18 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims()
 
-    const isProtected = PROTECTED_ROUTES.some(route =>
+  const isProtected = PROTECTED_ROUTES.some(route =>
     request.nextUrl.pathname.startsWith(route)
-    )
+  )
+  const isAuthRoute = AUTH_ROUTES.includes(request.nextUrl.pathname)
 
-    if (isProtected && !data) {
+  if (isProtected && !data) {
     return NextResponse.redirect(new URL("/", request.url))
-    }
+  }
+
+  if (isAuthRoute && data) {
+    return NextResponse.redirect(new URL("/home", request.url))
+  }
 
   return response
 }

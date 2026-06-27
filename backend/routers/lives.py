@@ -36,7 +36,7 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
     completion = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a life simulator game engine."},
+            {"role": "system", "content": "You are a life simulator game engine. You are trying to make people playing this simulation game get addicted to it."},
             {"role": "user", "content": f"Generate a starting life scenario for a {body.gender} baby just born in second person. Return JSON only with fields: scenario (string), choices (array of 3 strings), mother_name (string), father_name (string)"}
         ],
         response_format={"type": "json_object"}
@@ -118,8 +118,18 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
     completion = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a life simulator game engine."},
-            {"role": "user", "content": f"Generate a starting life scenario for this life: {rolling_summary} age {age} with these stats: money {money}, happiness {happiness}/100, intelligence {intelligence}/100, reputation {reputation}/100. Return JSON only with fields: scenario (string), choices (array of 3 strings), and only if you are adding a relationship, name_of_person (string), relationship_type (string), relationship_strength (int), and message_from_relationship (string)"}
+            {"role": "system", "content": "You are a life simulator game engine. You are trying to make people playing this simulation game get addicted to it."},
+            {"role": "user", "content": (
+                f"Generate a life scenario for this life: {rolling_summary} "
+                f"age {age} with these stats: money {money}, happiness {happiness}/100, "
+                f"intelligence {intelligence}/100, reputation {reputation}/100. "
+                f"The scenario should be juicy and interesting and not sound like AI slop."
+                f"The scenario should be 60 words maximum."
+                f"Return JSON only with fields: scenario (string), choices (array of 3 strings), "
+                f"and only if you are adding a relationship, name_of_person (string), "
+                f"relationship_type (string), relationship_strength (int), "
+                f"and message_from_relationship (string)"
+            )}
         ],
         response_format={"type": "json_object"}
     )
@@ -212,8 +222,19 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
     completion = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a life simulator game engine."},
-            {"role": "user", "content": f"A user of age {age} and with a life rolling summary: {rolling_summary} and stats: {money}$, happiness {happiness}/100, intelligence {intelligence}/100, reputation {reputation}/100 just made the choice to {body.decision} when asked {scenario}. In a json give the updated_rolling_summary (string), the deltas update_to_money (integer), update_to_intelligence (integer), update_to_happiness (integer), update_to_reputation (integer), update_to_age (integer) if you think any updates are necessary."}
+            {"role": "system", "content": "You are a life simulator game engine. You are trying to make people playing this simulation game get addicted to it."},
+            {"role": "user", "content": (
+            f"A user of age {age} and with a life rolling summary: {rolling_summary} "
+            f"and stats: {money}$, happiness {happiness}/100, intelligence {intelligence}/100, "
+            f"reputation {reputation}/100 just made the choice to {body.decision} "
+            f"when asked {scenario}. In a json give the updated_rolling_summary (string), "
+            f"the deltas update_to_money (integer), update_to_intelligence (integer), "
+            f"update_to_happiness (integer), update_to_reputation (integer), "
+            f"update_to_age (integer)."
+            f"Almost always update the age, unless this scenario or choice is significant enough "
+            f"that it should continue at the same age before progressing. "
+            f"If a stat isn't relevant to this scenario, set its update to 0. "
+        )}
         ],
         response_format={"type": "json_object"}
     )
@@ -241,7 +262,14 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
     )
 
     await database.execute(
-        "UPDATE lives SET money = money + :update_to_money, intelligence = intelligence + :update_to_intelligence, happiness = happiness + :update_to_happiness, reputation = reputation + :update_to_reputation, age = age + :update_to_age, rolling_summary = :rolling_summary WHERE id = :life_id",
+        """UPDATE lives SET 
+            money = money + :update_to_money, 
+            intelligence = LEAST(100, GREATEST(0, intelligence + :update_to_intelligence)), 
+            happiness = LEAST(100, GREATEST(0, happiness + :update_to_happiness)), 
+            reputation = LEAST(100, GREATEST(0, reputation + :update_to_reputation)), 
+            age = age + :update_to_age, 
+            rolling_summary = :rolling_summary 
+        WHERE id = :life_id""",
         {
             "update_to_money": update_to_money,
             "update_to_intelligence": update_to_intelligence,
@@ -260,12 +288,12 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
 
 
     return {
-    "status": "success",
-    "money": money + update_to_money,
-    "intelligence": intelligence + update_to_intelligence,
-    "happiness": happiness + update_to_happiness,
-    "reputation": reputation + update_to_reputation,
-    "age": age + update_to_age,
+        "status": "success",
+        "money": money + update_to_money,
+        "intelligence": max(0, min(100, intelligence + update_to_intelligence)),
+        "happiness": max(0, min(100, happiness + update_to_happiness)),
+        "reputation": max(0, min(100, reputation + update_to_reputation)),
+        "age": age + update_to_age,
     }
 
 @router.get("/active")
