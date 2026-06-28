@@ -1,24 +1,31 @@
 "use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
 
 export default function StartLifeModal({ onClose }: { onClose: () => void }) {
   const [gender, setGender] = useState("")
-  const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
   async function handleStart() {
-    if (!gender) return
+    if (!gender || loading) return
+    setLoading(true)
+
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
-    await fetch("http://localhost:8000/lives/", {
+    const res = await fetch("http://localhost:8000/lives/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ gender })
     })
-    router.push("/home")
+
+    if (res.ok) {
+      window.location.href = "/home"
+      return
+    }
+
+    setLoading(false)
   }
 
   return (
@@ -28,19 +35,25 @@ export default function StartLifeModal({ onClose }: { onClose: () => void }) {
         <div className="flex gap-4 justify-center">
           <button
             onClick={() => setGender("male")}
-            className={`rounded-lg px-6 py-3 border ${gender === "male" ? "bg-stone-700 text-white" : "bg-white text-stone-700 border-stone-400"}`}
+            disabled={loading}
+            className={`rounded-lg px-6 py-3 border disabled:opacity-50 ${gender === "male" ? "bg-stone-700 text-white" : "bg-white text-stone-700 border-stone-400"}`}
           >
             Male
           </button>
           <button
             onClick={() => setGender("female")}
-            className={`rounded-lg px-6 py-3 border ${gender === "female" ? "bg-stone-700 text-white" : "bg-white text-stone-700 border-stone-400"}`}
+            disabled={loading}
+            className={`rounded-lg px-6 py-3 border disabled:opacity-50 ${gender === "female" ? "bg-stone-700 text-white" : "bg-white text-stone-700 border-stone-400"}`}
           >
             Female
           </button>
         </div>
-        <button onClick={handleStart} className="bg-stone-700 text-white rounded-lg py-3">
-          Start Life
+        <button
+          onClick={handleStart}
+          disabled={loading || !gender}
+          className="bg-stone-700 text-white rounded-lg py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? "Starting..." : "Start Life"}
         </button>
       </div>
     </div>

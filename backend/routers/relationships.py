@@ -79,7 +79,7 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": f"You are the main character's {relationship_type}. Here is a summary of your relationship: {rolling_summary} with relationship strength {strength_number}/100. Here are your past three messages: {messages_list}"},
-            {"role": "user", "content": f"They just sent you the message {body.message}. Return JSON only with fields: your_response (string), updated_rolling_summary only if updates are needed (string), delta update_to_relationship_strength (int), and for the main character delta update_to_happiness (int), and if update to new_relationship_type (string)"}
+            {"role": "user", "content": f"They just sent you the message {body.message}. Return JSON only with fields: your_response (string), updated_rolling_summary (string, only if needed), update_to_relationship_strength (int), update_to_happiness (int), and new_relationship_type (string, only if the relationship status changed)"}
         ],
         response_format={"type": "json_object"}
     )
@@ -87,10 +87,10 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
     response = json.loads(response)
     print("RESPONSE:", response)
     your_response = response["your_response"]
-    update_to_relationship_strength = response.get("update_to_relationship_strength", 0)
-    new_relationship_type = response.get("new_relationship_type")
-    update_to_happiness = response.get("update_to_happiness", 0)
-    new_rolling_summary = response.get("updated_rolling_summary", rolling_summary)
+    update_to_relationship_strength = response.get("update_to_relationship_strength") or response.get("delta update_to_relationship_strength", 0)
+    new_relationship_type = response.get("new_relationship_type") or response.get("update_to_new_relationship_type")
+    update_to_happiness = response.get("update_to_happiness") or response.get("delta update_to_happiness", 0)
+    new_rolling_summary = response.get("updated_rolling_summary") or rolling_summary
 
 
     id = str(uuid.uuid4())
@@ -132,12 +132,18 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
     )
 
 
-    return{
+    updated_stats = await database.fetch_one(
+        "SELECT strength_number, relationship_type FROM relationships WHERE id = :id",
+        {"id": relationship_id}
+    )
+
+    return {
         "response": your_response,
         "update_to_relationship_strength": update_to_relationship_strength,
         "update_to_relationship_type": new_relationship_type,
         "update_to_happiness": update_to_happiness,
-        "relationship_type": relationship_type,
+        "relationship_type": updated_stats["relationship_type"],
+        "strength_number": updated_stats["strength_number"],
     }
 
 
@@ -159,9 +165,6 @@ async def set_unread_to_zero(life_id: str, relationship_id: str, user = Depends(
         )
         await database.execute(
             "UPDATE relationships SET unread_message_count = 0 WHERE id = :relationship_id",
-            {
-                "unread_message_count": unread_message_count,
-                "relationship_id": relationship_id
-            }
+            {"relationship_id": relationship_id}
         )
     return {"status": "success"}

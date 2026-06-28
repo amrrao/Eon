@@ -1,6 +1,6 @@
 create table relationships(
     id uuid primary key default gen_random_uuid(),
-    life_id uuid not null references lives(id),
+    life_id uuid not null references lives(id) on delete cascade,
     character_name text,
     strength_number integer,
     relationship_type text,

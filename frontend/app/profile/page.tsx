@@ -53,6 +53,21 @@ export default function Profile() {
     router.push('/home')
   }
 
+  async function handleDelete(e: React.MouseEvent, life_id: string) {
+    e.stopPropagation() // prevent the parent div's onClick from also firing
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session!.access_token
+  
+    const res = await fetch(`http://localhost:8000/lives/${life_id}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+  
+    if (res.ok) {
+      setLives(prev => prev.filter(life => life.id !== life_id))
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-stone-200">
       <div>
@@ -60,13 +75,22 @@ export default function Profile() {
       </div>
       <div>
         <div className="pt-4 pb-2">Your Lives</div>
-          {lives.map((life, i) => (
-            <div key={i} onClick={()=>handleClick(life.id)} className="flex items-center gap-3 border border-stone-400 rounded-md p-3 mb-2 hover:bg-stone-500">
+        {lives.map((life, i) => (
+          <div key={i} onClick={() => handleClick(life.id)} className={`flex items-center justify-between gap-3 border rounded-md p-3 mb-2 hover:bg-stone-500 ${life.is_active ? "border-stone-700 bg-stone-300" : "border-stone-400"}`}>
+            <div className="flex items-center gap-3">
+              {life.is_active && <span className="text-xs font-medium text-stone-700">Current</span>}
               <span className="text-xs w-24">{life.gender}</span>
               <span className="text-xs w-6 text-right">{life.age}</span>
               <span className="text-xs w-6 text-right">{life.created_at}</span>
             </div>
-          ))}
+            <button
+              onClick={(e) => handleDelete(e, life.id)}
+              className="text-xs text-red-600 border border-red-300 rounded px-2 py-1 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
         <Button onClick={() => setShowStartLifeModal(true)}>Start New Life</Button>
         {showStartLifeModal && <StartLifeModal onClose={() => setShowStartLifeModal(false)} />}
       </div>

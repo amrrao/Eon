@@ -39,7 +39,6 @@ export default function messages() {
         headers: { "Authorization": `Bearer ${session.access_token}` }
       })
       const json = await data.json()
-      console.log("relationships response:", json)
       setContacts(json.relationships || [])
       })
   }, [])
@@ -83,15 +82,20 @@ export default function messages() {
 
     if (res.status === 402) {
       setShowBuyModal(true)
+      setSending(false)
       return
     }
     const data = await res.json()
-    
-    
-    setTexts(prev => [...prev, 
+
+    setTexts(prev => [...prev,
       { sent_by_whom: "player", message: message },
       { sent_by_whom: "other_person", message: data.response }
     ])
+    setContacts(prev => prev.map(c =>
+      c.id === relationship_id
+        ? { ...c, relationship_type: data.relationship_type, strength_number: data.strength_number }
+        : c
+    ))
     setMessage("")
     setSending(false)
   }

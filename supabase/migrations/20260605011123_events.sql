@@ -1,6 +1,6 @@
 create table events (
     id uuid primary key default gen_random_uuid(),
-    life_id uuid not null references lives(id),
+    life_id uuid not null references lives(id) on delete cascade,
     scenario text,
     possible_choices jsonb,
     decided_choice text,

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
 import BuyCreditsModal from "@/components/BuyCreditsModal"
+import StartLifeModal from "@/components/StartLifeModal"
 
 
 export default function Home() {
@@ -12,7 +13,45 @@ export default function Home() {
   const supabase = createClient()
   const [choosing, setChoosing] = useState(false)
   const [showBuyModal, setShowBuyModal] = useState(false)
+  const [hasNoLife, setHasNoLife] = useState(false)
 
+  async function loadActiveLife(token: string) {
+    const res = await fetch("http://localhost:8000/lives/active", {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    const data = await res.json()
+    if (!data.life_id) {
+      setHasNoLife(true)
+      return
+    }
+
+    setHasNoLife(false)
+
+    if (data.decided_choice !== null) {
+      const eventRes = await fetch(`http://localhost:8000/lives/${data.life_id}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      })
+
+      if (eventRes.status === 402) {
+        setShowBuyModal(true)
+        return
+      }
+
+      const newEvent = await eventRes.json()
+      setGame({
+        ...data,
+        scenario: newEvent.scenario,
+        possible_choices: newEvent.choices,
+        event_id: newEvent.event_id,
+      })
+    } else {
+      setGame({
+        ...data,
+        possible_choices: JSON.parse(data.possible_choices)
+      })
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -20,44 +59,17 @@ export default function Home() {
         router.push("/")
         return
       }
-      const token = session.access_token
-  
-      const res = await fetch("http://localhost:8000/lives/active", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      const data = await res.json()
-      if (!data.life_id) {
-        router.push("/")
-        return
-      }
-  
-      if (data.decided_choice !== null) {
-        // last choice was already recorded, but no new scenario exists yet
-        const eventRes = await fetch(`http://localhost:8000/lives/${data.life_id}/events`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        })
-  
-        if (eventRes.status === 402) {
-          setShowBuyModal(true)
-          return
-        }
-  
-        const newEvent = await eventRes.json()
-        setGame({
-          ...data,
-          scenario: newEvent.scenario,
-          possible_choices: newEvent.choices,
-          event_id: newEvent.event_id,
-        })
-      } else {
-        setGame({
-          ...data,
-          possible_choices: JSON.parse(data.possible_choices)
-        })
-      }
+      await loadActiveLife(session.access_token)
     })
   }, [])
+
+  if (hasNoLife) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <StartLifeModal onClose={() => {}} />
+      </div>
+    )
+  }
 
   if (!game) return <div className="flex items-center justify-center min-h-screen">Loading...</div>
 
