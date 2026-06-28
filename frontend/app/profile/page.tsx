@@ -5,15 +5,15 @@ import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
 import { Button } from "@/components/ui/button"
 import BuyCreditsModal from "@/components/BuyCreditsModal"
+import StartLifeModal from "@/components/StartLifeModal"
 
 
 export default function Profile() {
   const router = useRouter()
   const supabase = createClient()
+  const [showStartLifeModal, setShowStartLifeModal] = useState(false)
   const [lives, setLives] = useState<any[]>([])
   const [showBuyModal, setShowBuyModal] = useState(false)
-  const [customCredits, setCustomCredits] = useState("")
-  
 
 
   useEffect(() => {
@@ -53,7 +53,6 @@ export default function Profile() {
     router.push('/home')
   }
 
-
   return (
     <div className="flex flex-col min-h-screen bg-stone-200">
       <div>
@@ -68,9 +67,8 @@ export default function Profile() {
               <span className="text-xs w-6 text-right">{life.created_at}</span>
             </div>
           ))}
-        <Button>
-          Start new life
-        </Button>
+        <Button onClick={() => setShowStartLifeModal(true)}>Start New Life</Button>
+        {showStartLifeModal && <StartLifeModal onClose={() => setShowStartLifeModal(false)} />}
       </div>
       <div>
         <div>Credits</div>

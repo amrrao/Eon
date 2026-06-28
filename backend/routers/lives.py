@@ -115,27 +115,57 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
     happiness = life_stats["happiness"]
     intelligence = life_stats["intelligence"]
     reputation = life_stats["reputation"]
+
+    existing_relationships = await database.fetch_all(
+        "SELECT character_name FROM relationships WHERE life_id = :life_id",
+        {"life_id": life_id}
+    )
+    existing_names = [r["character_name"] for r in existing_relationships]
     completion = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a life simulator game engine. You are trying to make people playing this simulation game get addicted to it."},
+            {"role": "system", "content": (
+                "You are a chaotic, dramatic life simulator game engine. Your job is to generate "
+                "scenarios that create genuine tension and force hard tradeoffs, not wholesome slice-of-life moments. "
+                "Every scenario should put something at risk: a relationship, money, reputation, or a secret. "
+                "Favor conflict, rivalry, temptation, and consequences over comfort and harmony. "
+                "Think reality TV drama, not a parenting blog."
+            )},
             {"role": "user", "content": (
-                f"Generate a life scenario for this life: {rolling_summary} "
-                f"age {age} with these stats: money {money}, happiness {happiness}/100, "
-                f"intelligence {intelligence}/100, reputation {reputation}/100. "
-                f"The scenario should be juicy and interesting and not sound like AI slop."
-                f"The scenario should be 60 words maximum."
-                f"Return JSON only with fields: scenario (string), choices (array of 3 strings), "
-                f"and only if you are adding a relationship, name_of_person (string), "
-                f"relationship_type (string), relationship_strength (int), "
-                f"and message_from_relationship (string)"
-            )}
+            f"Life so far: {rolling_summary}\n"
+            f"Current age: {age}. Stats: ${money}, happiness {happiness}/100, "
+            f"intelligence {intelligence}/100, reputation {reputation}/100.\n\n"
+            f"Existing relationships in this life: {', '.join(existing_names) if existing_names else 'none yet'}.\n\n"
+            f"Generate the NEXT dramatic moment in this life — something must be at stake. "
+            f"IMPORTANT: Do not continue the same storyline from the rolling summary for more than 2 turns "
+            f"in a row. If the rolling summary already covers an ongoing conflict, resolve it NOW in this "
+            f"scenario, then pivot to a completely different area of life: romance, family secrets, money "
+            f"trouble, identity, friendship betrayal, health, or ambition.\n\n"
+            f"Favor scenarios about: romantic tension or jealousy, a friend betraying your trust, a family "
+            f"member revealing something that changes how you see them, being caught in a lie, having to "
+            f"choose between two people who both want something from you, discovering a secret that isn't "
+            f"yours to know. Avoid generic competitions, contests, or external props as the source of drama — "
+            f"the drama should come from how people in this life actually feel about each other.\n\n"
+            f"DEFAULT: advance the age forward (by 1 or more years) after every single turn. "
+            f"RARE EXCEPTION: only stay at the same age if this exact scenario creates a genuine cliffhanger "
+            f"that demands immediate resolution before time can pass. This exception should happen no more "
+            f"than 1 out of every 4 turns. If in doubt, advance the age.\n\n"
+            f"Scenario: under 50 words, punchy, second person, no fluff or scene-setting filler.\n"
+            f"Choices: 3 options that are genuinely different in risk/reward, not just flavor text — "
+            f"one safe, one risky, one morally gray.\n\n"
+            f"Return JSON only with fields: scenario (string), choices (array of 3 strings), and "
+            f"update_to_age (int, following the default/exception rule above).\n\n"
+            f"If this scenario mentions ANY named person who is NOT already in the existing relationships "
+            f"list above, you MUST also include: name_of_person (string), relationship_type (string), "
+            f"relationship_strength (int), and message_from_relationship (string). "
+            f"If the scenario only involves people already in the existing relationships list, omit "
+            f"those four fields entirely."
+        )}
         ],
         response_format={"type": "json_object"}
     )
     response = completion.choices[0].message.content
     life_data = json.loads(response)
-    print("LIFE DATA:", life_data)
     scenario = life_data["scenario"]
     choices = life_data["choices"]
 
@@ -149,12 +179,14 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
     )
 
     relationship_id = str(uuid.uuid4())
-    relationship_name = life_data.get("relationship_name")
+    relationship_name = life_data.get("name_of_person")
     relationship_type = life_data.get("relationship_type")
     relationship_strength = life_data.get("relationship_strength")
 
     message_id = str(uuid.uuid4())
     message_from_relationship = life_data.get("message_from_relationship")
+
+    print(relationship_name, relationship_type)
 
     if relationship_name != None:
 
@@ -171,7 +203,7 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
             "UPDATE lives SET unread_message_count = unread_message_count + 1 WHERE id = :id",
             {"id": life_id}
         )
-
+        
         await database.execute(
             "Insert into messages (id, relationship_id, sent_by_whom, message) values (:id, :relationship_id, :sent_by_whom, :message)",
             {"id": message_id,
@@ -222,19 +254,29 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
     completion = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a life simulator game engine. You are trying to make people playing this simulation game get addicted to it."},
+            {"role": "system", "content": (
+                "You are a chaotic, dramatic life simulator game engine. You are trying to make "
+                "people playing this simulation get genuinely addicted to it through real stakes "
+                "and consequences, not wholesome resolutions."
+            )},
             {"role": "user", "content": (
-            f"A user of age {age} and with a life rolling summary: {rolling_summary} "
-            f"and stats: {money}$, happiness {happiness}/100, intelligence {intelligence}/100, "
-            f"reputation {reputation}/100 just made the choice to {body.decision} "
-            f"when asked {scenario}. In a json give the updated_rolling_summary (string), "
-            f"the deltas update_to_money (integer), update_to_intelligence (integer), "
-            f"update_to_happiness (integer), update_to_reputation (integer), "
-            f"update_to_age (integer)."
-            f"Almost always update the age, unless this scenario or choice is significant enough "
-            f"that it should continue at the same age before progressing. "
-            f"If a stat isn't relevant to this scenario, set its update to 0. "
-        )}
+                f"A user of age {age} with a life rolling summary: {rolling_summary}\n"
+                f"Stats: ${money}, happiness {happiness}/100, intelligence {intelligence}/100, "
+                f"reputation {reputation}/100.\n"
+                f"They just made the choice to {body.decision} when asked: {scenario}\n\n"
+                f"Write the consequence of this choice into the rolling summary. Be specific about "
+                f"what changed — don't just restate the choice, show its real impact on relationships, "
+                f"reputation, or circumstances. Keep the updated_rolling_summary under 80 words, "
+                f"condensing or dropping older resolved details to make room for what just happened.\n\n"
+                f"DEFAULT: advance the age forward (update_to_age = 1 or more). "
+                f"RARE EXCEPTION: only keep the same age if this choice creates a cliffhanger requiring "
+                f"immediate follow-up. This should happen no more than 1 out of every 4 turns. "
+                f"If in doubt, advance the age.\n\n"
+                f"Return JSON only with fields: updated_rolling_summary (string), "
+                f"update_to_money (integer), update_to_intelligence (integer), "
+                f"update_to_happiness (integer), update_to_reputation (integer), "
+                f"update_to_age (integer). If a stat isn't relevant to this scenario, set its update to 0."
+            )}
         ],
         response_format={"type": "json_object"}
     )
