@@ -5,7 +5,7 @@ create table relationships(
     strength_number integer,
     relationship_type text,
     unread_message_count integer,
-    rolling_summary text,
+    openai_conversation_id text,
     created_at timestamptz not null default now()
 );
 

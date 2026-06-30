@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from openai import AsyncOpenAI
 import json
 import uuid
+from relationship_ai import init_relationship_conversation
 
 client = AsyncOpenAI()
 router = APIRouter()
@@ -71,6 +72,7 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
         "relationship_type": "mother",
         "unread_message_count": 0}
     )
+    await init_relationship_conversation(relationship_id_mom)
     await database.execute(
         "Insert into relationships (id, life_id, character_name, strength_number, relationship_type, unread_message_count) values (:id, :life_id, :character_name, :strength_number, :relationship_type, :unread_message_count)",
         {"id": relationship_id_dad,
@@ -80,6 +82,7 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
         "relationship_type": "father",
         "unread_message_count": 0}
     )
+    await init_relationship_conversation(relationship_id_dad)
     event_id = str(uuid.uuid4())
     await database.execute(
         "Insert into events (id, life_id, scenario, possible_choices) values (:id, :life_id, :scenario, :possible_choices)",
@@ -230,6 +233,7 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
                 "sent_by_whom": name,
                 "message": intro_message}
             )
+        await init_relationship_conversation(rel_id, intro_message)
         existing_character_names.add(name.lower())
 
     return {
