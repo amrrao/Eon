@@ -69,6 +69,7 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
     update_to_relationship_strength = parsed["update_to_relationship_strength"]
     new_relationship_type = parsed["new_relationship_type"]
     update_to_happiness = parsed["update_to_happiness"]
+    updated_life_rolling_summary = parsed["updated_life_rolling_summary"]
 
     await database.execute(
         "Insert into messages (id, relationship_id, sent_by_whom, message) values (:id, :relationship_id, :sent_by_whom, :message)",
@@ -78,13 +79,23 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         "message": your_response}
     )
 
-    await database.execute(
-        "UPDATE lives SET happiness = happiness + :update_to_happiness where id = :id",
-        {
-            "id": life_id,
-            "update_to_happiness": update_to_happiness
-        }
-    )
+    if updated_life_rolling_summary:
+        await database.execute(
+            "UPDATE lives SET happiness = happiness + :update_to_happiness, rolling_summary = :rolling_summary WHERE id = :id",
+            {
+                "id": life_id,
+                "update_to_happiness": update_to_happiness,
+                "rolling_summary": updated_life_rolling_summary,
+            }
+        )
+    else:
+        await database.execute(
+            "UPDATE lives SET happiness = happiness + :update_to_happiness where id = :id",
+            {
+                "id": life_id,
+                "update_to_happiness": update_to_happiness
+            }
+        )
 
     if new_relationship_type:
         await database.execute(
@@ -104,13 +115,16 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         {"id": str(user.id)}
     )
 
-    return {
+    result = {
         "response": your_response,
         "update_to_relationship_strength": update_to_relationship_strength,
         "update_to_relationship_type": new_relationship_type,
         "update_to_happiness": update_to_happiness,
         "relationship_type": relationship_type,
+        "update_to_rolling_summary": updated_life_rolling_summary,
     }
+    print("MESSAGE RESPONSE:", result)
+    return result
 
 
 @router.patch("/{life_id}/relationships/{relationship_id}/messages")
