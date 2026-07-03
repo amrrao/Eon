@@ -9,7 +9,8 @@ create table lives (
     gender text,
     alive boolean default true,
     unread_message_count integer default 0, 
-    rolling_summary text,
+    openai_life_conversation_id text,
+    character_texting_updates text default '',
     is_active boolean default true,
     created_at timestamptz not null default now()
 );

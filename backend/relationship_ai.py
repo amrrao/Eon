@@ -4,6 +4,7 @@ from database import database
 
 client = AsyncOpenAI()
 MODEL = "gpt-4o-mini"
+COMPACT_THRESHOLD = 15000
 
 JSON_INSTRUCTION = (
     "Return JSON only with fields: your_response (string), "
@@ -56,6 +57,7 @@ async def call_character_response(
         instructions=instructions,
         input=f"{user_input}\n\nRespond in JSON.",
         store=True,
+        context_management=[{"type": "compaction", "compact_threshold": COMPACT_THRESHOLD}],
         text={"format": {"type": "json_object"}},
     )
 

@@ -6,6 +6,7 @@ create table relationships(
     relationship_type text,
     unread_message_count integer,
     openai_conversation_id text,
+    pending_world_update text,
     created_at timestamptz not null default now()
 );
 
