@@ -81,7 +81,7 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
     )
 
     await database.execute(
-        "UPDATE lives SET happiness = happiness + :update_to_happiness where id = :id",
+        "UPDATE lives SET happiness = LEAST(100, GREATEST(0, happiness + :update_to_happiness)) where id = :id",
         {
             "id": life_id,
             "update_to_happiness": update_to_happiness
