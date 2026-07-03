@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 import json
 import uuid
 from relationship_ai import init_relationship_conversation
+from life_ai import init_life_conversation, call_life_response
 
 client = AsyncOpenAI()
 router = APIRouter()
@@ -33,22 +34,7 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
         )
     if credits["credits"]<1:
         raise HTTPException(status_code=402, detail="Insufficient credits")
-    
-    completion = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a life simulator game engine. You are trying to make people playing this simulation game get addicted to it."},
-            {"role": "user", "content": f"Generate a starting life scenario for a {body.gender} baby just born in second person. Return JSON only with fields: scenario (string), choices (array of 3 strings), mother_name (string), father_name (string)"}
-        ],
-        response_format={"type": "json_object"}
-    )
-    response = completion.choices[0].message.content
-    life_data = json.loads(response)
-    print("LIFE DATA:", life_data)
-    mom_name = life_data["mother_name"]
-    dad_name = life_data["father_name"]
-    scenario = life_data["scenario"]
-    choices = life_data["choices"]
+
     life_id = str(uuid.uuid4())
     await database.execute(
         "UPDATE lives SET is_active = false WHERE user_id = :user_id",
@@ -61,6 +47,24 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
         "gender": body.gender,
         "unread_message_count": 0}
     )
+    await init_life_conversation(life_id)
+
+    life_data = await call_life_response(
+        life_id,
+        f"Generate a starting life scenario for a {body.gender} baby just born. "
+        "Return JSON with fields: scenario (string), choices (array of 3 strings), "
+        "mother_name (string), father_name (string).",
+        age=0,
+        money=0,
+        happiness=50,
+        intelligence=5,
+        reputation=50,
+        relationships_list=[],
+    )
+    mom_name = life_data["mother_name"]
+    dad_name = life_data["father_name"]
+    scenario = life_data["scenario"]
+    choices = life_data["choices"]
     relationship_id_mom = str(uuid.uuid4())
     relationship_id_dad = str(uuid.uuid4())
     await database.execute(
