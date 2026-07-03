@@ -13,9 +13,8 @@ JSON_INSTRUCTION = (
     "new_relationship_type (string, only if how YOU and the main character relate changed — "
     "e.g. friend to ex, acquaintance to dating; NOT for news about other people in their life; "
     "you are not engaged to them just because they told you someone else proposed; omit if unchanged), "
-    "and updated_life_rolling_summary (string, only if this exchange is life-significant — "
-    "e.g. confession, fight, breakup, betrayal, major secret, or romance milestone; "
-    "rewrite the full life summary under 80 words to include what happened; otherwise omit)"
+    "and scenario_update (string, only if this exchange is significant for the main character's life story — "
+    "one sentence summary for the scenario engine; otherwise omit)"
 )
 
 
@@ -39,7 +38,7 @@ async def call_character_response(
     character_name,
     relationship_type,
     strength_number,
-    life_rolling_summary=None,
+    pending_world_update=None,
 ):
     instructions = (
         f"You are {character_name}, the main character's {relationship_type}. "
@@ -48,8 +47,12 @@ async def call_character_response(
         f"new_relationship_type only describes YOUR bond with the main character, not their relationships with other people. "
         f"{JSON_INSTRUCTION}"
     )
-    if life_rolling_summary:
-        instructions += f"\nThe main character's life so far: {life_rolling_summary}"
+
+    if pending_world_update:
+        user_input = (
+            f"[Private life update — player cannot see this] {pending_world_update}\n\n"
+            f"They texted you: {user_input}"
+        )
 
     response = await client.responses.create(
         model=MODEL,
@@ -62,11 +65,11 @@ async def call_character_response(
     )
 
     data = json.loads(response.output_text)
-    updated_life_rolling_summary = data.get("updated_life_rolling_summary")
+    scenario_update = data.get("scenario_update")
     return {
         "your_response": data["your_response"],
         "update_to_relationship_strength": data.get("update_to_relationship_strength", 0),
         "new_relationship_type": data.get("new_relationship_type"),
         "update_to_happiness": data.get("update_to_happiness", 0),
-        "updated_life_rolling_summary": updated_life_rolling_summary if updated_life_rolling_summary else None,
+        "scenario_update": scenario_update if scenario_update else None,
     }

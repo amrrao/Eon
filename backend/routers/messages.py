@@ -3,7 +3,7 @@ from dependancies import get_current_user
 from database import database
 from pydantic import BaseModel
 import uuid
-from relationship_ai import call_character_response
+from relationship_ai import call_character_response, init_relationship_conversation
 
 router = APIRouter()
 
@@ -30,16 +30,22 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         raise HTTPException(status_code=402, detail="Insufficient credits")
 
     relationship_stats = await database.fetch_one(
-        "Select character_name, strength_number, relationship_type, openai_conversation_id from relationships where id = :id",
+        "Select character_name, strength_number, relationship_type, openai_conversation_id, pending_world_update from relationships where id = :id",
         {"id": relationship_id}
     )
 
     strength_number = relationship_stats["strength_number"]
     relationship_type = relationship_stats["relationship_type"]
     character_name = relationship_stats["character_name"]
+    pending_world_update = relationship_stats["pending_world_update"]
     conv_id = relationship_stats["openai_conversation_id"]
     if not conv_id:
-        raise HTTPException(status_code=500, detail="Conversation not initialized for this relationship")
+        await init_relationship_conversation(relationship_id)
+        refreshed = await database.fetch_one(
+            "SELECT openai_conversation_id FROM relationships WHERE id = :id",
+            {"id": relationship_id},
+        )
+        conv_id = refreshed["openai_conversation_id"]
 
     await database.execute(
         "INSERT INTO messages (id, relationship_id, sent_by_whom, message) VALUES (:id, :relationship_id, :sent_by_whom, :message)",
@@ -51,25 +57,20 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         }
     )
 
-    life_stats = await database.fetch_one(
-        "SELECT rolling_summary FROM lives WHERE id = :id",
-        {"id": life_id}
-    )
-
     parsed = await call_character_response(
         conv_id,
         body.message,
         character_name,
         relationship_type,
         strength_number,
-        life_stats["rolling_summary"],
+        pending_world_update,
     )
 
     your_response = parsed["your_response"]
     update_to_relationship_strength = parsed["update_to_relationship_strength"]
     new_relationship_type = parsed["new_relationship_type"]
     update_to_happiness = parsed["update_to_happiness"]
-    updated_life_rolling_summary = parsed["updated_life_rolling_summary"]
+    scenario_update = parsed["scenario_update"]
 
     await database.execute(
         "Insert into messages (id, relationship_id, sent_by_whom, message) values (:id, :relationship_id, :sent_by_whom, :message)",
@@ -79,22 +80,25 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         "message": your_response}
     )
 
-    if updated_life_rolling_summary:
+    await database.execute(
+        "UPDATE lives SET happiness = happiness + :update_to_happiness where id = :id",
+        {
+            "id": life_id,
+            "update_to_happiness": update_to_happiness
+        }
+    )
+
+    if scenario_update:
+        line = f"- [{character_name} ({relationship_type})] {scenario_update}\n"
         await database.execute(
-            "UPDATE lives SET happiness = happiness + :update_to_happiness, rolling_summary = :rolling_summary WHERE id = :id",
-            {
-                "id": life_id,
-                "update_to_happiness": update_to_happiness,
-                "rolling_summary": updated_life_rolling_summary,
-            }
+            "UPDATE lives SET character_texting_updates = character_texting_updates || :line WHERE id = :id",
+            {"id": life_id, "line": line},
         )
-    else:
+
+    if pending_world_update:
         await database.execute(
-            "UPDATE lives SET happiness = happiness + :update_to_happiness where id = :id",
-            {
-                "id": life_id,
-                "update_to_happiness": update_to_happiness
-            }
+            "UPDATE relationships SET pending_world_update = NULL WHERE id = :id",
+            {"id": relationship_id},
         )
 
     if new_relationship_type:
@@ -104,7 +108,7 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
             "update_to_relationship_strength": update_to_relationship_strength,
             "new_relationship_type": new_relationship_type}
         )
-    else:
+    elif update_to_relationship_strength:
         await database.execute(
             "UPDATE relationships SET strength_number = strength_number + :update_to_relationship_strength WHERE id = :id",
             {"id": relationship_id, "update_to_relationship_strength": update_to_relationship_strength}
@@ -115,16 +119,13 @@ async def generate_message(body: Message, life_id: str, relationship_id: str, us
         {"id": str(user.id)}
     )
 
-    result = {
+    return {
         "response": your_response,
         "update_to_relationship_strength": update_to_relationship_strength,
         "update_to_relationship_type": new_relationship_type,
         "update_to_happiness": update_to_happiness,
         "relationship_type": relationship_type,
-        "update_to_rolling_summary": updated_life_rolling_summary,
     }
-    print("MESSAGE RESPONSE:", result)
-    return result
 
 
 @router.patch("/{life_id}/relationships/{relationship_id}/messages")

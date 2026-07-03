@@ -2,13 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from dependancies import get_current_user
 from database import database
 from pydantic import BaseModel
-from openai import AsyncOpenAI
 import json
 import uuid
 from relationship_ai import init_relationship_conversation
 from life_ai import init_life_conversation, call_life_response
 
-client = AsyncOpenAI()
 router = APIRouter()
 
 class CreateLifeRequest(BaseModel):
@@ -128,10 +126,10 @@ async def delete_life(life_id: str, user = Depends(get_current_user)):
 async def generate_event(life_id: str, user = Depends(get_current_user)):
 
     life_stats = await database.fetch_one(
-        "Select rolling_summary, age, money, happiness, intelligence, reputation from lives where id = :id",
+        "Select character_texting_updates, age, money, happiness, intelligence, reputation from lives where id = :id",
         {"id": life_id}
         )
-    rolling_summary = life_stats["rolling_summary"]
+    character_texting_updates = life_stats["character_texting_updates"]
     age = life_stats["age"]
     money = life_stats["money"]
     happiness = life_stats["happiness"]
@@ -139,57 +137,32 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
     reputation = life_stats["reputation"]
 
     existing_relationships = await database.fetch_all(
-        "SELECT character_name, relationship_type FROM relationships WHERE life_id = :life_id",
+        "SELECT id, character_name, relationship_type FROM relationships WHERE life_id = :life_id",
         {"life_id": life_id}
     )
     existing_names = [f"{r['character_name']} ({r['relationship_type']})" for r in existing_relationships]
-    
-    completion = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": (
-                "You are a chaotic, dramatic life simulator game engine. Your job is to generate "
-                "scenarios that create genuine tension and force hard tradeoffs, not wholesome slice-of-life moments. "
-                "Every scenario should put something at risk: a relationship, money, reputation, or a secret. "
-                "Favor conflict, rivalry, temptation, and consequences over comfort and harmony. "
-                "Think reality TV drama, not a parenting blog."
-            )},
-            {"role": "user", "content": (
-            f"Life so far: {rolling_summary}\n"
-            f"Stats: ${money}, happiness {happiness}/100, "
-            f"intelligence {intelligence}/100, reputation {reputation}/100.\n\n"
-            f"Existing relationships in this life: {', '.join(existing_names) if existing_names else 'none yet'}.\n\n"
-            f"Generate the NEXT dramatic moment in this life. Something must be at stake. The scenario must be relevant to the current age {age}"
-            f"IMPORTANT: Do not continue the same storyline from the rolling summary for more than 2 turns "
-            f"in a row. If the rolling summary already covers an ongoing conflict, resolve it NOW in this "
-            f"scenario, then pivot to a completely different area of life: romance, family secrets, money "
-            f"trouble, identity, friendship betrayal, health, or ambition.\n\n"
-            f"Favor scenarios about: romantic tension or jealousy, a friend betraying your trust, a family "
-            f"member revealing something that changes how you see them, being caught in a lie, having to "
-            f"choose between two people who both want something from you, discovering a secret that isn't "
-            f"yours to know. Avoid generic competitions, contests, or external props as the source of drama — "
-            f"the drama should come from how people in this life actually feel about each other.\n\n"
-            f"DEFAULT: advance the age forward (by 1 or more years) after every single turn. "
-            f"RARE EXCEPTION: only stay at the same age if this exact scenario creates a genuine cliffhanger "
-            f"that demands immediate resolution before time can pass. This exception should happen no more "
-            f"than 1 out of every 4 turns. If in doubt, advance the age.\n\n"
-            f"Scenario: under 50 words, punchy, second person, no fluff or scene-setting filler.\n"
-            f"Choices: 3 options that are genuinely different in risk/reward, not just flavor text — "
-            f"one safe, one risky, one morally gray.\n\n"
-            f"Return JSON only with fields: scenario (string), choices (array of 3 strings), "
-            f"update_to_age (int), and new_relationships (array).\n\n"
-            f"new_relationships is REQUIRED. It must be an empty array [] if the scenario only involves "
-            f"people already listed above. If the scenario introduces ANY named person not already in the "
-            f"existing relationships list, add one object per new person with: name_of_person (string), "
-            f"relationship_type (string), relationship_strength (int 1-100), message_from_relationship "
-            f"(string — a short text message they would send the player introducing themselves or reacting "
-            f"to the scenario)."
-        )}
-        ],
-        response_format={"type": "json_object"}
+
+    life_data = await call_life_response(
+        life_id,
+        (
+            "Generate the next scenario. Return JSON with fields: scenario (string), "
+            "choices (array of 3 strings), new_relationships (array), and "
+            "character_world_updates (array). Scenario should be under 50 words. "
+            "Choices should be genuinely different. new_relationships must be [] unless "
+            "a named person not in existing relationships becomes important. Each new relationship "
+            "object should include name_of_person, relationship_type, relationship_strength, "
+            "and message_from_relationship. character_world_updates should be [] unless existing "
+            "characters need to know this scenario happened; each object should include "
+            "character_name and update."
+        ),
+        age,
+        money,
+        happiness,
+        intelligence,
+        reputation,
+        existing_names,
+        character_texting_updates,
     )
-    response = completion.choices[0].message.content
-    life_data = json.loads(response)
     scenario = life_data["scenario"]
     choices = life_data["choices"]
 
@@ -202,9 +175,15 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
         "possible_choices": json.dumps(choices)}
     )
 
+    await database.execute(
+        "UPDATE lives SET character_texting_updates = '' WHERE id = :id",
+        {"id": life_id}
+    )
+
     new_relationships = life_data.get("new_relationships", [])
 
     existing_character_names = {r["character_name"].lower() for r in existing_relationships}
+    relationship_ids_by_name = {r["character_name"].lower(): r["id"] for r in existing_relationships}
 
     for person in new_relationships:
         name = person.get("name_of_person")
@@ -239,6 +218,21 @@ async def generate_event(life_id: str, user = Depends(get_current_user)):
             )
         await init_relationship_conversation(rel_id, intro_message)
         existing_character_names.add(name.lower())
+        relationship_ids_by_name[name.lower()] = rel_id
+
+    world_updates = life_data.get("character_world_updates", [])
+    for item in world_updates:
+        name = item.get("character_name")
+        update = item.get("update")
+        if not name or not update:
+            continue
+        rel_id = relationship_ids_by_name.get(name.lower())
+        if not rel_id:
+            continue
+        await database.execute(
+            "UPDATE relationships SET pending_world_update = COALESCE(pending_world_update || '\n', '') || :update WHERE id = :id",
+            {"id": rel_id, "update": update}
+        )
 
     return {
         "event_id": event_id,
@@ -258,10 +252,9 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
         raise HTTPException(status_code=402, detail="Insufficient credits")
         
     life_stats = await database.fetch_one(
-       "Select rolling_summary, age, money, happiness, intelligence, reputation from lives where id = :id",
+       "Select age, money, happiness, intelligence, reputation from lives where id = :id",
         {"id": life_id}
         )
-    rolling_summary = life_stats["rolling_summary"]
     age = life_stats["age"]
     money = life_stats["money"]
     happiness = life_stats["happiness"]
@@ -274,40 +267,32 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
             )
     scenario = event_stats["scenario"]
 
-
-    completion = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": (
-                "You are a chaotic, dramatic life simulator game engine. You are trying to make "
-                "people playing this simulation get genuinely addicted to it through real stakes "
-                "and consequences, not wholesome resolutions."
-            )},
-            {"role": "user", "content": (
-                f"A user of age {age} with a life rolling summary: {rolling_summary}\n"
-                f"Stats: ${money}, happiness {happiness}/100, intelligence {intelligence}/100, "
-                f"reputation {reputation}/100.\n"
-                f"They just made the choice to {body.decision} when asked: {scenario}\n\n"
-                f"Write the consequence of this choice into the rolling summary. Be specific about "
-                f"what changed — don't just restate the choice, show its real impact on relationships, "
-                f"reputation, or circumstances. Keep the updated_rolling_summary under 80 words, "
-                f"condensing or dropping older resolved details to make room for what just happened.\n\n"
-                f"DEFAULT: advance the age forward (update_to_age = 1 or more). "
-                f"RARE EXCEPTION: only keep the same age if this choice creates a cliffhanger requiring "
-                f"immediate follow-up. This should happen no more than 1 out of every 4 turns. "
-                f"If in doubt, advance the age.\n\n"
-                f"Return JSON only with fields: updated_rolling_summary (string), "
-                f"update_to_money (integer), update_to_intelligence (integer), "
-                f"update_to_happiness (integer), update_to_reputation (integer), "
-                f"update_to_age (integer). If a stat isn't relevant to this scenario, set its update to 0."
-            )}
-        ],
-        response_format={"type": "json_object"}
+    existing_relationships = await database.fetch_all(
+        "SELECT id, character_name, relationship_type FROM relationships WHERE life_id = :life_id",
+        {"life_id": life_id}
     )
-    response = completion.choices[0].message.content
-    updates = json.loads(response)
-    print("Updates:", updates)
-    updated_rolling_summary = updates.get("updated_rolling_summary")
+    existing_names = [f"{r['character_name']} ({r['relationship_type']})" for r in existing_relationships]
+    relationship_ids_by_name = {r["character_name"].lower(): r["id"] for r in existing_relationships}
+
+    updates = await call_life_response(
+        life_id,
+        (
+            f"The player chose: {body.decision}. The scenario was: {scenario}. "
+            "Apply the consequences. Return JSON with fields: update_to_money (integer), "
+            "update_to_intelligence (integer), update_to_happiness (integer), "
+            "update_to_reputation (integer), update_to_age (integer), and "
+            "character_world_updates (array). If a stat is not affected, set it to 0. "
+            "Default to update_to_age 1 or more unless the choice creates a cliffhanger. "
+            "character_world_updates should be [] unless existing characters need to know "
+            "what happened; each object should include character_name and update."
+        ),
+        age,
+        money,
+        happiness,
+        intelligence,
+        reputation,
+        existing_names,
+    )
     update_to_money = updates.get("update_to_money", 0)
     update_to_intelligence = updates.get("update_to_intelligence", 0)
     update_to_happiness = updates.get("update_to_happiness", 0)
@@ -333,8 +318,7 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
             intelligence = LEAST(100, GREATEST(0, intelligence + :update_to_intelligence)), 
             happiness = LEAST(100, GREATEST(0, happiness + :update_to_happiness)), 
             reputation = LEAST(100, GREATEST(0, reputation + :update_to_reputation)), 
-            age = age + :update_to_age, 
-            rolling_summary = :rolling_summary 
+            age = age + :update_to_age
         WHERE id = :life_id""",
         {
             "update_to_money": update_to_money,
@@ -342,10 +326,23 @@ async def update_choice(body: Decision, life_id: str, event_id: str, user = Depe
             "update_to_happiness": update_to_happiness,
             "update_to_reputation": update_to_reputation,
             "update_to_age": update_to_age,
-            "life_id": life_id,
-            "rolling_summary": updated_rolling_summary
+            "life_id": life_id
         }
     )
+
+    world_updates = updates.get("character_world_updates", [])
+    for item in world_updates:
+        name = item.get("character_name")
+        update = item.get("update")
+        if not name or not update:
+            continue
+        rel_id = relationship_ids_by_name.get(name.lower())
+        if not rel_id:
+            continue
+        await database.execute(
+            "UPDATE relationships SET pending_world_update = COALESCE(pending_world_update || '\n', '') || :update WHERE id = :id",
+            {"id": rel_id, "update": update}
+        )
 
     await database.execute(
         "UPDATE users SET credits = credits - 1 WHERE id = :id",
