@@ -19,6 +19,10 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        glass:
+          "border-white/30 bg-white/[0.12] text-slate-900 shadow-[0_4px_24px_rgba(0,0,0,0.1),inset_0_1px_0_0_rgba(255,255,255,0.4),inset_0_-1px_0_0_rgba(0,0,0,0.05)] backdrop-blur-none [-webkit-backdrop-filter:none] hover:border-white/40 hover:bg-white/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_0_0_rgba(255,255,255,0.5),inset_0_-1px_0_0_rgba(0,0,0,0.05)]",
+        "frosted-glass":
+          "border-white/25 bg-white/[0.02] text-slate-900 shadow-[0_4px_24px_rgba(0,0,0,0.1),inset_0_1px_0_0_rgba(255,255,255,0.4),inset_0_-1px_0_0_rgba(0,0,0,0.05)] backdrop-blur-[2px] [-webkit-backdrop-filter:blur(2px)] hover:border-white/35 hover:bg-white/[0.08] hover:shadow-[0_8px_32px_rgba(0,0,0,0.15),inset_0_1px_0_0_rgba(255,255,255,0.5),inset_0_-1px_0_0_rgba(0,0,0,0.05)]",
       },
       size: {
         default:

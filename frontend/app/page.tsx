@@ -40,19 +40,24 @@ export default function Welcome() {
   }
 
   return (
-    <div className="flex flex-col justify-center">
-      <div className="text-xl text-center pt-12">Welcome to Eon</div>
+    <div
+      className="relative min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: "url('/welcome.png')" }}
+    >
+      <div className="absolute top-[30vh] text-[#1F2937] text-bold left-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="text-6xl text-center [text-shadow:0_8px_32px_rgba(0,0,0,0.3)]">Welcome to Eon</div>
 
-      <div className="flex justify-center mt-4">
-        <Button onClick={() => {
-          if (!session) {
-            setShowAuth(true)
-          } else {
-            setShowStartLifeModal(true)
-          }
-        }}>
-          Start Life
-        </Button>
+        <div className="flex justify-center mt-6">
+          <Button className="bg-[#1F2937] border text-xl rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]" onClick={() => {
+            if (!session) {
+              setShowAuth(true)
+            } else {
+              setShowStartLifeModal(true)
+            }
+          }}>
+            Start Life
+          </Button>
+        </div>
       </div>
 
       {showStartLifeModal && <StartLifeModal onClose={() => setShowStartLifeModal(false)} />}
@@ -77,13 +82,13 @@ export default function Welcome() {
       {!loading && (
         <div className="absolute top-6 right-8">
           {session ? (
-            <button onClick={async () => { await supabase.auth.signOut(); setSession(null) }}>
+            <Button variant="glass" onClick={async () => { await supabase.auth.signOut(); setSession(null) }}>
               Log Out
-            </button>
+            </Button>
           ) : (
-            <button onClick={() => { setIsLogin(true); setShowAuth(true) }}>
+            <Button variant="glass" onClick={() => { setIsLogin(true); setShowAuth(true) }}>
               Sign In
-            </button>
+            </Button>
           )}
         </div>
       )}

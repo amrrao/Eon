@@ -3,9 +3,18 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
 import Navbar from "@/components/Navbar"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import BuyCreditsModal from "@/components/BuyCreditsModal"
 import StartLifeModal from "@/components/StartLifeModal"
+
+function formatCreatedAt(value: string) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+}
 
 
 export default function Profile() {
@@ -17,8 +26,6 @@ export default function Profile() {
 
 
   useEffect(() => {
-    
-    
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         router.push("/")
@@ -33,10 +40,10 @@ export default function Profile() {
         return
       }
       setLives(json.lives)
-      })
+    })
   }, [])
 
-  async function handleSignOut(){
+  async function handleSignOut() {
     await supabase.auth.signOut()
     router.push('/')
   }
@@ -45,7 +52,7 @@ export default function Profile() {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
-    const patchRes = await fetch(`http://localhost:8000/lives/${life_id}/activate`, {
+    await fetch(`http://localhost:8000/lives/${life_id}/activate`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ decision: life_id })
@@ -54,59 +61,87 @@ export default function Profile() {
   }
 
   async function handleDelete(e: React.MouseEvent, life_id: string) {
-    e.stopPropagation() // prevent the parent div's onClick from also firing
+    e.stopPropagation()
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
-  
+
     const res = await fetch(`http://localhost:8000/lives/${life_id}`, {
       method: "DELETE",
       headers: { "Authorization": `Bearer ${token}` }
     })
-  
+
     if (res.ok) {
       setLives(prev => prev.filter(life => life.id !== life_id))
     }
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-stone-200">
-      <div>
-        Name
-      </div>
-      <div>
-        <div className="pt-4 pb-2">Your Lives</div>
-        {lives.map((life, i) => (
-          <div key={i} onClick={() => handleClick(life.id)} className={`flex items-center justify-between gap-3 border rounded-md p-3 mb-2 hover:bg-stone-500 ${life.is_active ? "border-stone-700 bg-stone-300" : "border-stone-400"}`}>
-            <div className="flex items-center gap-3">
-              {life.is_active && <span className="text-xs font-medium text-stone-700">Current</span>}
-              <span className="text-xs w-24">{life.gender}</span>
-              <span className="text-xs w-6 text-right">{life.age}</span>
-              <span className="text-xs w-6 text-right">{life.created_at}</span>
-            </div>
-            <button
-              onClick={(e) => handleDelete(e, life.id)}
-              className="text-xs text-red-600 border border-red-300 rounded px-2 py-1 hover:bg-red-50"
-            >
-              Delete
-            </button>
-          </div>
-        ))}
-        <Button onClick={() => setShowStartLifeModal(true)}>Start New Life</Button>
-        {showStartLifeModal && <StartLifeModal onClose={() => setShowStartLifeModal(false)} />}
-      </div>
-      <div>
-        <div>Credits</div>
-        <Button onClick={() => setShowBuyModal(true)}>Buy More Credits</Button>
+    <div
+      className="relative flex h-screen flex-col overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: "url('/profile.png')" }}
+    >
+      <header className="relative z-10 px-6 pt-6 pb-4">
+        <div className="mb-4 flex items-center justify-end gap-3">
+          <Button
+            className="bg-[#1F2937] border text-sm rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+            onClick={() => setShowStartLifeModal(true)}
+          >
+            Start New Life
+          </Button>
+          <Button
+            className="bg-[#1F2937] border text-sm rounded-xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+            onClick={() => setShowBuyModal(true)}
+          >
+            Buy More Credits
+          </Button>
+          <Button variant="glass" onClick={handleSignOut}>
+            Log Out
+          </Button>
+        </div>
+        <div className="text-center text-2xl font-medium text-[#1F2937] [text-shadow:0_8px_32px_rgba(0,0,0,0.3)]">
+          Your Lives
+        </div>
+      </header>
 
-        <BuyCreditsModal show={showBuyModal} onClose={() => setShowBuyModal(false)} />
+      <div className="flex-1 overflow-y-auto px-34 pb-28">
+        <div className="flex flex-wrap justify-start gap-6">
+          {lives.map((life, i) => (
+            <div
+              key={i}
+              onClick={() => handleClick(life.id)}
+              className={cn(
+                buttonVariants({ variant: "glass" }),
+                "h-auto w-52 aspect-[5/7] cursor-pointer flex-col justify-between whitespace-normal p-6",
+                life.is_active && "border-white/50 bg-white/20"
+              )}
+            >
+              <div className="flex flex-col items-center gap-3 text-center">
+                {life.is_active && (
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                    Current
+                  </span>
+                )}
+                <span className="text-lg font-medium capitalize">{life.gender}</span>
+                <span className="text-5xl font-semibold leading-none">{life.age}</span>
+                <span className="text-md font-bold text-slate-700">{formatCreatedAt(life.created_at)}</span>
+              </div>
+              <button
+                onClick={(e) => handleDelete(e, life.id)}
+                className="mx-auto w-1/2 rounded-lg bg-slate-200/80 px-2 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-300/80 hover:text-slate-700"
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
-      <div>
-        <button className="border border-gray-600 rounded-lg p-1" onClick={handleSignOut}>
-              Log Out
-        </button>
-            
-      </div>
-      <Navbar/>
+
+
+      {showStartLifeModal && (
+        <StartLifeModal onClose={() => setShowStartLifeModal(false)} />
+      )}
+      <BuyCreditsModal show={showBuyModal} onClose={() => setShowBuyModal(false)} />
+      <Navbar />
     </div>
-  );
+  )
 }

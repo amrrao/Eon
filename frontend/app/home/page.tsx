@@ -133,7 +133,7 @@ return (
         ))}
       </div>
     )}
-    <div className="mt-auto pb-20 bg-stone-100 pr-8 pl-8">
+    <div className="mt-auto pb-28 bg-stone-100 pr-8 pl-8">
       <div className="pt-4 pb-2">Life Stats</div>
       {[
         { label: "Money", value: game.money, color: "#c4956a" },
