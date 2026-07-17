@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from dependancies import get_current_user
+from dependancies import get_current_user, require_life_owner
 from database import database
 from pydantic import BaseModel
 import uuid
@@ -11,7 +11,15 @@ class Message(BaseModel):
     message: str
 
 @router.get("/{life_id}/relationships/{relationship_id}/messages")
-async def get_messages(life_id: str, relationship_id: str):
+async def get_messages(life_id: str, relationship_id: str, user = Depends(get_current_user)):
+    await require_life_owner(life_id, user)
+    relationship = await database.fetch_one(
+        "SELECT id FROM relationships WHERE id = :id AND life_id = :life_id",
+        {"id": relationship_id, "life_id": life_id},
+    )
+    if not relationship:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+
     messages_list = await database.fetch_all(
         "SELECT id, sent_by_whom, message FROM messages WHERE relationship_id = :relationship_id ORDER BY created_at ASC",
         {"relationship_id": relationship_id}

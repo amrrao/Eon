@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from dependancies import get_current_user
+from dependancies import get_current_user, require_life_owner
 from database import database
 from pydantic import BaseModel
 import json
@@ -112,12 +112,7 @@ async def create_life(body: CreateLifeRequest, user = Depends(get_current_user))
 
 @router.delete("/{life_id}")
 async def delete_life(life_id: str, user = Depends(get_current_user)):
-    life = await database.fetch_one(
-        "SELECT user_id FROM lives WHERE id = :id",
-        {"id": life_id}
-    )
-    if not life or str(life["user_id"]) != str(user.id):
-        raise HTTPException(status_code=404, detail="Life not found")
+    await require_life_owner(life_id, user)
 
     await database.execute("DELETE FROM lives WHERE id = :id", {"id": life_id})
     return {"status": "success"}
@@ -414,7 +409,8 @@ async def activate_life(life_id: str, user = Depends(get_current_user)):
 
 
 @router.get("/{life_id}")
-async def get_life(life_id: str):
+async def get_life(life_id: str, user = Depends(get_current_user)):
+    await require_life_owner(life_id, user)
 
     life_stats = await database.fetch_one(
         "Select age, money, happiness, intelligence, reputation, alive from lives where id = :id",
