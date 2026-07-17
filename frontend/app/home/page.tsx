@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
+import { API_URL } from "@/lib/api"
 import Navbar from "@/components/Navbar"
 import BuyCreditsModal from "@/components/BuyCreditsModal"
 import StartLifeModal from "@/components/StartLifeModal"
@@ -16,7 +17,7 @@ export default function Home() {
   const [hasNoLife, setHasNoLife] = useState(false)
 
   async function loadActiveLife(token: string) {
-    const res = await fetch("http://localhost:8000/lives/active", {
+    const res = await fetch(`${API_URL}/lives/active`, {
       headers: { "Authorization": `Bearer ${token}` }
     })
     const data = await res.json()
@@ -28,7 +29,7 @@ export default function Home() {
     setHasNoLife(false)
 
     if (data.decided_choice !== null) {
-      const eventRes = await fetch(`http://localhost:8000/lives/${data.life_id}/events`, {
+      const eventRes = await fetch(`${API_URL}/lives/${data.life_id}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       })
@@ -78,7 +79,7 @@ export default function Home() {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
-    const patchRes = await fetch(`http://localhost:8000/lives/${game.life_id}/events/${game.event_id}`, {
+    const patchRes = await fetch(`${API_URL}/lives/${game.life_id}/events/${game.event_id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ decision: choice })
@@ -91,7 +92,7 @@ export default function Home() {
       return
     }
 
-    const res = await fetch(`http://localhost:8000/lives/${game.life_id}/events`, {
+    const res = await fetch(`${API_URL}/lives/${game.life_id}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     })

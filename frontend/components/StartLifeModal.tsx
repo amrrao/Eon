@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
 import { createClient } from "@/lib/client"
+import { API_URL } from "@/lib/api"
 
 export default function StartLifeModal({ onClose }: { onClose: () => void }) {
   const [gender, setGender] = useState("")
@@ -14,7 +15,7 @@ export default function StartLifeModal({ onClose }: { onClose: () => void }) {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
-    const res = await fetch("http://localhost:8000/lives/", {
+    const res = await fetch(`${API_URL}/lives/`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ gender })

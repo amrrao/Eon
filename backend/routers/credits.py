@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 router = APIRouter()
 
@@ -48,8 +49,8 @@ async def purchase_credits(body: PurchaseRequest, user = Depends(get_current_use
         payment_method_types=["card"],
         line_items=[{"price": price_id, "quantity": quantity}],
         mode="payment",
-        success_url=f"http://localhost:3000{body.return_path}?payment=success",
-        cancel_url=f"http://localhost:3000{body.return_path}",
+        success_url=f"{FRONTEND_URL}{body.return_path}?payment=success",
+        cancel_url=f"{FRONTEND_URL}{body.return_path}",
         metadata={"user_id": str(user.id), "credits": str(body.credits)}
     )
 

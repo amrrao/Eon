@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/client"
+import { API_URL } from "@/lib/api"
 import Navbar from "@/components/Navbar"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -31,7 +32,7 @@ export default function Profile() {
         router.push("/")
         return
       }
-      const data = await fetch("http://localhost:8000/lives/", {
+      const data = await fetch(`${API_URL}/lives/`, {
         headers: { "Authorization": `Bearer ${session.access_token}` }
       })
       const json = await data.json()
@@ -52,7 +53,7 @@ export default function Profile() {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
-    await fetch(`http://localhost:8000/lives/${life_id}/activate`, {
+    await fetch(`${API_URL}/lives/${life_id}/activate`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ decision: life_id })
@@ -65,7 +66,7 @@ export default function Profile() {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session!.access_token
 
-    const res = await fetch(`http://localhost:8000/lives/${life_id}`, {
+    const res = await fetch(`${API_URL}/lives/${life_id}`, {
       method: "DELETE",
       headers: { "Authorization": `Bearer ${token}` }
     })

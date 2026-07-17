@@ -2,6 +2,7 @@
 "use client"
 import { useState } from "react"
 import { createClient } from "@/lib/client"
+import { API_URL } from "@/lib/api"
 
 export default function BuyCreditsModal({ show, onClose }: { show: boolean, onClose: () => void }) {
   const [customCredits, setCustomCredits] = useState("")
@@ -13,7 +14,7 @@ export default function BuyCreditsModal({ show, onClose }: { show: boolean, onCl
 
     const currentPath = window.location.pathname
 
-    const res = await fetch("http://localhost:8000/credits/purchase", {
+    const res = await fetch(`${API_URL}/credits/purchase`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ credits, return_path: currentPath})
