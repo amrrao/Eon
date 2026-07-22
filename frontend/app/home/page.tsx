@@ -117,8 +117,9 @@ export default function Home() {
 
 return (
   <div className="flex flex-col min-h-screen bg-stone-200">
-    <div className="pt-8 pl-8 text-xl">
-      Age: {game.age}
+    <div className="flex justify-between pt-8 px-8">
+      <div className="text-xl">Age: {game.age}</div>
+      <div className="text-sm text-stone-600">Money: ${game.money}</div>
     </div>
     <div className="justify-center text-center pt-12 text-lg pr-20 pl-20">
       {game.scenario}
@@ -137,7 +138,6 @@ return (
     <div className="mt-auto pb-28 bg-stone-100 pr-8 pl-8">
       <div className="pt-4 pb-2">Life Stats</div>
       {[
-        { label: "Money", value: game.money, color: "#c4956a" },
         { label: "Happiness", value: game.happiness, color: "#a67c52" },
         { label: "Intelligence", value: game.intelligence, color: "#8b6240" },
         { label: "Reputation", value: game.reputation, color: "#d4a87a" },
