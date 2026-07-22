@@ -49,6 +49,7 @@ async def purchase_credits(body: PurchaseRequest, user = Depends(get_current_use
         payment_method_types=["card"],
         line_items=[{"price": price_id, "quantity": quantity}],
         mode="payment",
+        allow_promotion_codes=True,
         success_url=f"{FRONTEND_URL}{body.return_path}?payment=success",
         cancel_url=f"{FRONTEND_URL}{body.return_path}",
         metadata={"user_id": str(user.id), "credits": str(body.credits)}
