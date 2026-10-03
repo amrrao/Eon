@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Eon
 
-## Getting Started
+AI life-simulation platform where every choice and interaction shapes an evolving character's story.
 
-First, run the development server:
+🔗 **Live:** [playeon.co](https://playeon.co/)
 
-```bash
+## What it does
+Eon runs on two core systems: a game/scenario choice engine that drives the main storyline, and a texting system where you can message individual characters directly. Everything affects everything else: choices in the main story shape how characters text you, and conversations while texting carry back into the next story scenario. It's all one connected world, rather than a series of disconnected interactions.
+
+## Architecture
+- **Backend:** FastAPI + PostgreSQL (Supabase), with a dual-conversation LLM system for real-time life-simulation and per-character messaging, synced via a Postgres-backed buffer that avoids both the blocking, slow calls you'd get from waiting on each character update synchronously after a scenario generates, and the race condition simple async calls would still leave open
+- **Payments:** Credit-gated system built on Stripe, with webhook-based idempotency handling to prevent duplicate credit grants on retries
+- **Frontend:** Deployed on Vercel
+- **Backend infra:** Deployed on AWS EC2 with CI/CD
+
+## Setup
+
+### Frontend
+\`\`\`
+cd frontend
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+\`\`\`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Backend
+\`\`\`
+cd backend
+cp .env.example .env
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+\`\`\`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Status
+Currently polishing and iterating to improve scenario quality and engagement.
