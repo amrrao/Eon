@@ -1,6 +1,6 @@
 # Eon
 
-AI life-simulation platform where every choice and interaction shapes an evolving character's story.
+AI life-simulation platform where every choice and interaction shapes an evolving character's world.
 
 🔗 **Live:** [playeon.co](https://playeon.co/)
 
